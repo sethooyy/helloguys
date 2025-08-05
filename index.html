@@ -1,8 +1,9 @@
-<!DOCTYPE html><html lang="en">
-<head>
+  <!DOCTYPE html><html lang="en"><head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Romantic Portal</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
   <style>
     body {
       margin: 0;
@@ -74,155 +75,171 @@
   <audio id="bg-music" autoplay loop>
     <source src="romantic.mp3" type="audio/mpeg">
     Your browser does not support the audio element.
-  </audio>  <div id="login" class="center">
+  </audio>
+  <div id="login" class="center">
     <h2>welcome weirdo!</h2>
     <button onclick="showGuestConfirm()">enter as guest</button>
     <br /><br />
     <input type="text" id="adminUser" placeholder="Username" />
     <input type="password" id="adminPass" placeholder="Password" />
     <button onclick="loginAdmin()">Login as Admin</button>
-  </div>  <div id="guest-confirm" class="center">
+  </div>
+  <div id="guest-confirm" class="center">
     <h3>are you seth's gf?</h3>
     <button onclick="showSurprise()">Yes</button>
     <button onclick="showMessaging()">No</button>
-  </div>  <div id="surprise" class="surprise-container">
+  </div>
+  <div id="surprise" class="surprise-container">
     <div class="deep-message">
       in the silence of my thoughts, your name echoes like a sacred song.
       you are not just a memory, not just a dream—
       you are the pulse in my veins, the whisper between stars,
       the poem that life wrote when it first learned to love.
     </div>
-  </div>  <div id="messaging" class="center">
+  </div>
+  <div id="messaging" class="center">
     <h2>Leave a Message</h2>
     <textarea id="message" placeholder="Type your message here..."></textarea><br>
     <button onclick="saveMessage()">Send</button>
     <div id="messageList"></div>
     <button onclick="logout()">Logout</button>
-  </div>  <div id="admin-panel" class="center">
+  </div>
+  <div id="admin-panel" class="center">
     <h2>Admin Panel</h2>
     <div id="adminMessages"></div>
     <button onclick="logout()">Logout</button>
-  </div>  <script>
-    const loginDiv = document.getElementById('login');
-    const confirmDiv = document.getElementById('guest-confirm');
-    const surpriseDiv = document.getElementById('surprise');
-    const messagingDiv = document.getElementById('messaging');
-    const adminPanel = document.getElementById('admin-panel');
-    const bgMusic = document.getElementById('bg-music');
+  </div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCgGre7OLzLCmkUumKuKKL0Y7dxxwWKtsU",
+      authDomain: "permanent-message.firebaseapp.com",
+      projectId: "permanent-message",
+      storageBucket: "permanent-message.firebaseapp.com",
+      messagingSenderId: "20733214265",
+      appId: "1:20733214265:web:7042f7536c6e88b93397e8",
+      measurementId: "G-XEJ3KD4HZC"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();const loginDiv = document.getElementById('login');
+const confirmDiv = document.getElementById('guest-confirm');
+const surpriseDiv = document.getElementById('surprise');
+const messagingDiv = document.getElementById('messaging');
+const adminPanel = document.getElementById('admin-panel');
+const bgMusic = document.getElementById('bg-music');
 
-    const messagesKey = 'loveMessages';
+function init() {
+  loginDiv.style.display = 'block';
+  createFallingText();
+  createFallingImages();
+}
 
-    function init() {
-      loginDiv.style.display = 'block';
-      createFallingText();
-      createFallingImages();
-    }
+function showGuestConfirm() {
+  loginDiv.style.display = 'none';
+  confirmDiv.style.display = 'block';
+  bgMusic.play();
+}
 
-    function showGuestConfirm() {
-      loginDiv.style.display = 'none';
-      confirmDiv.style.display = 'block';
-      bgMusic.play();
-    }
+function showSurprise() {
+  confirmDiv.style.display = 'none';
+  surpriseDiv.style.display = 'flex';
+}
 
-    function showSurprise() {
-      confirmDiv.style.display = 'none';
-      surpriseDiv.style.display = 'flex';
-    }
+function showMessaging() {
+  confirmDiv.style.display = 'none';
+  messagingDiv.style.display = 'block';
+  removeFallingElements();
+  renderMessages();
+}
 
-    function showMessaging() {
-      confirmDiv.style.display = 'none';
-      messagingDiv.style.display = 'block';
-      removeFallingElements();
-      renderMessages();
-    }
+function loginAdmin() {
+  const user = document.getElementById('adminUser').value;
+  const pass = document.getElementById('adminPass').value;
+  if (user === 'user' && pass === 'jansitgwapo') {
+    loginDiv.style.display = 'none';
+    adminPanel.style.display = 'block';
+    renderAdminMessages();
+  } else {
+    alert('Incorrect credentials!');
+  }
+}
 
-    function loginAdmin() {
-      const user = document.getElementById('adminUser').value;
-      const pass = document.getElementById('adminPass').value;
-      if (user === 'user' && pass === 'jansitgwapo') {
-        loginDiv.style.display = 'none';
-        adminPanel.style.display = 'block';
-        renderAdminMessages();
-      } else {
-        alert('Incorrect credentials!');
-      }
-    }
+function saveMessage() {
+  const msg = document.getElementById('message').value.trim();
+  if (!msg) return;
+  const id = Date.now();
+  db.ref('messages/' + id).set({ text: msg });
+  document.getElementById('message').value = '';
+  renderMessages();
+}
 
-    function saveMessage() {
-      const msg = document.getElementById('message').value;
-      if (!msg.trim()) return;
-      const messages = JSON.parse(localStorage.getItem(messagesKey)) || [];
-      messages.push(msg);
-      localStorage.setItem(messagesKey, JSON.stringify(messages));
-      document.getElementById('message').value = '';
-      renderMessages();
-    }
+function renderMessages() {
+  const list = document.getElementById('messageList');
+  db.ref('messages').once('value', snapshot => {
+    list.innerHTML = '';
+    snapshot.forEach(child => {
+      const div = document.createElement('div');
+      div.textContent = child.val().text;
+      div.style.fontFamily = 'cursive';
+      list.appendChild(div);
+    });
+  });
+}
 
-    function renderMessages() {
-      const messages = JSON.parse(localStorage.getItem(messagesKey)) || [];
-      const list = document.getElementById('messageList');
-      list.innerHTML = '';
-      messages.forEach(msg => {
-        const div = document.createElement('div');
-        div.textContent = msg;
-        div.style.fontFamily = 'cursive';
-        list.appendChild(div);
-      });
-    }
+function renderAdminMessages() {
+  const list = document.getElementById('adminMessages');
+  db.ref('messages').once('value', snapshot => {
+    list.innerHTML = '';
+    snapshot.forEach(child => {
+      const key = child.key;
+      const div = document.createElement('div');
+      div.innerHTML = `${child.val().text} <button onclick="deleteMsg('${key}')">Delete</button>`;
+      list.appendChild(div);
+    });
+  });
+}
 
-    function renderAdminMessages() {
-      const messages = JSON.parse(localStorage.getItem(messagesKey)) || [];
-      const list = document.getElementById('adminMessages');
-      list.innerHTML = '';
-      messages.forEach((msg, idx) => {
-        const div = document.createElement('div');
-        div.innerHTML = `${msg} <button onclick="deleteMsg(${idx})">Delete</button>`;
-        list.appendChild(div);
-      });
-    }
+function deleteMsg(key) {
+  db.ref('messages/' + key).remove();
+  renderAdminMessages();
+}
 
-    function deleteMsg(index) {
-      const messages = JSON.parse(localStorage.getItem(messagesKey)) || [];
-      messages.splice(index, 1);
-      localStorage.setItem(messagesKey, JSON.stringify(messages));
-      renderAdminMessages();
-    }
+function logout() {
+  location.reload();
+}
 
-    function logout() {
-      location.reload();
-    }
+function createFallingText() {
+  for (let i = 0; i < 20; i++) {
+    const text = document.createElement('div');
+    text.className = 'falling-text';
+    text.style.left = `${Math.random() * 100}vw`;
+    text.style.animationDuration = `${5 + Math.random() * 5}s`;
+    text.style.top = `-${Math.random() * 200}px`;
+    text.innerText = 'I LOVE YOU';
+    document.body.appendChild(text);
+  }
+}
 
-    function createFallingText() {
-      for (let i = 0; i < 20; i++) {
-        const text = document.createElement('div');
-        text.className = 'falling-text';
-        text.style.left = `${Math.random() * 100}vw`;
-        text.style.animationDuration = `${5 + Math.random() * 5}s`;
-        text.style.top = `-${Math.random() * 200}px`;
-        text.innerText = 'I LOVE YOU';
-        document.body.appendChild(text);
-      }
-    }
+function createFallingImages() {
+  const images = ['gf2.jpeg', 'gf3.jpeg', 'gf4.jpeg', 'gf5.jpeg'];
+  for (let i = 0; i < 15; i++) {
+    const imgDiv = document.createElement('div');
+    imgDiv.className = 'falling-img';
+    imgDiv.style.left = `${Math.random() * 100}vw`;
+    imgDiv.style.animationDuration = `${5 + Math.random() * 5}s`;
+    imgDiv.style.top = `-${Math.random() * 200}px`;
+    const img = document.createElement('img');
+    img.src = images[Math.floor(Math.random() * images.length)];
+    imgDiv.appendChild(img);
+    document.body.appendChild(imgDiv);
+  }
+}
 
-    function createFallingImages() {
-      const images = ['gf2.jpeg', 'gf3.jpeg', 'gf4.jpeg', 'gf5.jpeg'];
-      for (let i = 0; i < 15; i++) {
-        const imgDiv = document.createElement('div');
-        imgDiv.className = 'falling-img';
-        imgDiv.style.left = `${Math.random() * 100}vw`;
-        imgDiv.style.animationDuration = `${5 + Math.random() * 5}s`;
-        imgDiv.style.top = `-${Math.random() * 200}px`;
-        const img = document.createElement('img');
-        img.src = images[Math.floor(Math.random() * images.length)];
-        imgDiv.appendChild(img);
-        document.body.appendChild(imgDiv);
-      }
-    }
+function removeFallingElements() {
+  document.querySelectorAll('.falling-text, .falling-img').forEach(el => el.remove());
+}
 
-    function removeFallingElements() {
-      document.querySelectorAll('.falling-text, .falling-img').forEach(el => el.remove());
-    }
+window.onload = init;
 
-    window.onload = init;
-  </script></body>
+  </script>
+</body>
 </html>
